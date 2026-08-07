@@ -1,10 +1,11 @@
-// auth.js - Synchronisiertes Cloud-Login - SICHERE VERSION
+// auth.js - Synchronisiertes Cloud-Login & Vollständige Spielstands-Sicherung
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
 
 let currentUserEmail = null;
 
+// ERZWINGT ANMELDUNG ODER AUTO-LOGIN
 window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
@@ -15,14 +16,13 @@ window.addEventListener('DOMContentLoaded', () => {
         currentUserEmail = savedUser;
         if (overlay) overlay.style.display = 'none';
         loadCloudGame();
-        // Auto-Save alle 30 Sekunden
-        setInterval(saveCloudGame, 30000);
+        setInterval(saveCloudGame, 10000);
     } else {
         if (overlay) overlay.style.display = 'flex';
     }
 });
 
-// LOGIN
+// LOGIN-BUTTON
 document.getElementById('auth-login-btn')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('auth-email').value.trim().toLowerCase();
     const passwordInput = document.getElementById('auth-password').value.trim();
@@ -40,33 +40,41 @@ document.getElementById('auth-login-btn')?.addEventListener('click', async () =>
     if (overlay) overlay.style.display = 'none';
     
     await loadCloudGame();
+    setInterval(saveCloudGame, 10000);
 });
 
-// ABMELDEN (JETZT SICHER!)
+// ABMELDEN-FUNKTION
 async function logoutUser() {
-    if (confirm("Spiel wird jetzt gespeichert und du meldest dich ab. Sicher?")) {
-        // Erst speichern, dann löschen!
-        await saveCloudGame(); 
+    if (confirm("Möchtest du dich wirklich abmelden? Dein Spielstand wird gesichert.")) {
+        await saveCloudGame();
         localStorage.removeItem("isekai_user_email");
         location.reload();
     }
 }
+window.logoutUser = logoutUser;
 
-// CLOUD SPEICHERN
+// CLOUD SPEICHERN (VOLLSTÄNDIGER DATENSATZ)
 window.saveCloudGame = async function() {
     if (!currentUserEmail) return;
 
-    // Wir nehmen die aktuellsten Variablen aus deinem Spiel
     const saveData = {
         user: currentUserEmail,
         player: (typeof player !== 'undefined') ? player : {},
-        inventory: (typeof inventory !== 'undefined') ? inventory : [],
-        heroines: (typeof heroines !== 'undefined') ? heroines : [],
+        inventory: (typeof inventory !== 'undefined') ? inventory : {},
+        heroines: (typeof heroines !== 'undefined') ? heroines : {},
         storyChapters: (typeof storyChapters !== 'undefined') ? storyChapters : [],
+        
+        // Jetzt werden auch alle Forschungs- und Freischaltungs-Zustände gesichert:
+        crops: (typeof crops !== 'undefined') ? crops : {},
+        trees: (typeof trees !== 'undefined') ? trees : {},
+        animals: (typeof animals !== 'undefined') ? animals : {},
+        ores: (typeof ores !== 'undefined') ? ores : {},
+        kitchen: (typeof kitchen !== 'undefined') ? kitchen : {},
+        gilde: (typeof gilde !== 'undefined') ? gilde : {},
+        alchemie: (typeof alchemie !== 'undefined') ? alchemie : {},
+        
         lastSave: new Date().toLocaleString('de-DE')
     };
-
-    console.log("Speichere Cloud-Daten...");
 
     try {
         let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
@@ -95,11 +103,22 @@ window.saveCloudGame = async function() {
                 localStorage.setItem("isekai_bin_id_" + currentUserEmail, data.metadata.id);
             }
         }
-        console.log("Erfolgreich gespeichert!");
     } catch (err) {
-        console.error("Fehler beim Speichern:", err);
+        console.error("Fehler beim Cloud-Speichern:", err);
     }
 };
+
+// HELFER UND SYSTEM-LADEN
+function applyCategorySave(targetObj, savedObj) {
+    if (!targetObj || !savedObj) return;
+    for (let k in savedObj) {
+        if (targetObj[k]) {
+            if (savedObj[k].unlocked !== undefined) targetObj[k].unlocked = savedObj[k].unlocked;
+            if (savedObj[k].cost !== undefined) targetObj[k].cost = savedObj[k].cost;
+            if (savedObj[k].rewardGold !== undefined) targetObj[k].rewardGold = savedObj[k].rewardGold;
+        }
+    }
+}
 
 // CLOUD LADEN
 window.loadCloudGame = async function() {
@@ -118,14 +137,39 @@ window.loadCloudGame = async function() {
             const parsed = data.record;
             if (parsed.player) player = parsed.player;
             if (parsed.inventory) inventory = parsed.inventory;
-            if (parsed.heroines) heroines = parsed.heroines;
-            if (parsed.storyChapters) storyChapters = parsed.storyChapters;
+
+            // Forschungen & Freischaltungen aus Cloud übertragen:
+            if (parsed.crops && typeof crops !== 'undefined') applyCategorySave(crops, parsed.crops);
+            if (parsed.trees && typeof trees !== 'undefined') applyCategorySave(trees, parsed.trees);
+            if (parsed.animals && typeof animals !== 'undefined') applyCategorySave(animals, parsed.animals);
+            if (parsed.ores && typeof ores !== 'undefined') applyCategorySave(ores, parsed.ores);
+            if (parsed.kitchen && typeof kitchen !== 'undefined') applyCategorySave(kitchen, parsed.kitchen);
+            if (parsed.gilde && typeof gilde !== 'undefined') applyCategorySave(gilde, parsed.gilde);
+            if (parsed.alchemie && typeof alchemie !== 'undefined') applyCategorySave(alchemie, parsed.alchemie);
+
+            if (parsed.heroines && typeof heroines !== 'undefined') {
+                for (let k in parsed.heroines) {
+                    if (heroines[k]) {
+                        heroines[k].affection = parsed.heroines[k].affection;
+                        heroines[k].unlocked = parsed.heroines[k].unlocked;
+                    }
+                }
+            }
+
+            if (parsed.storyChapters && typeof storyChapters !== 'undefined') {
+                parsed.storyChapters.forEach(sc => {
+                    let ch = storyChapters.find(c => c.id === sc.id);
+                    if (ch) {
+                        ch.unlocked = sc.unlocked;
+                        if (sc.quest) ch.quest.completed = sc.quest.completed;
+                    }
+                });
+            }
 
             if (typeof updateUI === 'function') updateUI();
             if (typeof renderCurrentTab === 'function') renderCurrentTab();
-            console.log("Spielstand geladen.");
         }
     } catch (err) {
-        console.error("Fehler beim Laden:", err);
+        console.error("Fehler beim Laden des Cloud-Spielstands:", err);
     }
 };
