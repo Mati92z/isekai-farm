@@ -1,29 +1,28 @@
-// auth.js - Synchronisiertes Cloud-Login mit verlässlichem Abmelden
+// auth.js - Synchronisiertes Cloud-Login - SICHERE VERSION
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
 
 let currentUserEmail = null;
 
-// ERZWINGT ANMELDUNG ODER AUTO-LOGIN
 window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
 
-    // Event Listener für den Abmelden-Button registrieren
     document.getElementById('btn-logout')?.addEventListener('click', logoutUser);
 
     if (savedUser) {
         currentUserEmail = savedUser;
         if (overlay) overlay.style.display = 'none';
         loadCloudGame();
-        setInterval(saveCloudGame, 10000);
+        // Auto-Save alle 30 Sekunden
+        setInterval(saveCloudGame, 30000);
     } else {
         if (overlay) overlay.style.display = 'flex';
     }
 });
 
-// LOGIN-BUTTON
+// LOGIN
 document.getElementById('auth-login-btn')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('auth-email').value.trim().toLowerCase();
     const passwordInput = document.getElementById('auth-password').value.trim();
@@ -41,30 +40,33 @@ document.getElementById('auth-login-btn')?.addEventListener('click', async () =>
     if (overlay) overlay.style.display = 'none';
     
     await loadCloudGame();
-    setInterval(saveCloudGame, 10000);
 });
 
-// ABMELDEN-FUNKTION
-function logoutUser() {
-    if (confirm("Möchtest du dich wirklich abmelden? Ungespeicherte Fortschritte gehen verloren.")) {
+// ABMELDEN (JETZT SICHER!)
+async function logoutUser() {
+    if (confirm("Spiel wird jetzt gespeichert und du meldest dich ab. Sicher?")) {
+        // Erst speichern, dann löschen!
+        await saveCloudGame(); 
         localStorage.removeItem("isekai_user_email");
         location.reload();
     }
 }
-window.logoutUser = logoutUser;
 
 // CLOUD SPEICHERN
 window.saveCloudGame = async function() {
     if (!currentUserEmail) return;
 
+    // Wir nehmen die aktuellsten Variablen aus deinem Spiel
     const saveData = {
         user: currentUserEmail,
-        player: player,
-        inventory: inventory,
-        heroines: heroines,
-        storyChapters: storyChapters,
+        player: (typeof player !== 'undefined') ? player : {},
+        inventory: (typeof inventory !== 'undefined') ? inventory : [],
+        heroines: (typeof heroines !== 'undefined') ? heroines : [],
+        storyChapters: (typeof storyChapters !== 'undefined') ? storyChapters : [],
         lastSave: new Date().toLocaleString('de-DE')
     };
+
+    console.log("Speichere Cloud-Daten...");
 
     try {
         let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
@@ -93,6 +95,7 @@ window.saveCloudGame = async function() {
                 localStorage.setItem("isekai_bin_id_" + currentUserEmail, data.metadata.id);
             }
         }
+        console.log("Erfolgreich gespeichert!");
     } catch (err) {
         console.error("Fehler beim Speichern:", err);
     }
@@ -120,6 +123,7 @@ window.loadCloudGame = async function() {
 
             if (typeof updateUI === 'function') updateUI();
             if (typeof renderCurrentTab === 'function') renderCurrentTab();
+            console.log("Spielstand geladen.");
         }
     } catch (err) {
         console.error("Fehler beim Laden:", err);

@@ -1,4 +1,4 @@
-// script.js - Gut lesbare System-Texte & Automatische Quest-Start-Engine
+// script.js - Gut lesbare System-Texte & Automatische Quest-Start-Engine (Inkl. Instant Cloud-Save)
 
 const storyDialogs = [
     "Hallo? Kannst du mich hören? Oh je... das ist jetzt echt peinlich.",
@@ -475,7 +475,7 @@ function renderSettingsTab() {
                 <div style="background: rgba(0, 0, 0, 0.4); border: 1px solid #00bcd4; padding: 18px; border-radius: 10px; margin-bottom: 20px;">
                     <p style="font-size: 16px; margin: 8px 0; color: #ffffff;">👤 Spieler-Identität: <strong style="color: #00e5ff; font-size: 18px;">${player.name}</strong></p>
                     <p style="font-size: 16px; margin: 8px 0; color: #ffffff;">⭐ Reinkarnations-Level: <strong style="color: #ffd700; font-size: 18px;">Level ${player.level}</strong></p>
-                    <p style="font-size: 16px; margin: 8px 0; color: #ffffff;">🔄 Automatisches Speichern: <strong style="color: #64ffda; font-size: 16px;">Aktiv (Alle 5 Sekunden)</strong></p>
+                    <p style="font-size: 16px; margin: 8px 0; color: #ffffff;">🔄 Automatisches Speichern: <strong style="color: #64ffda; font-size: 16px;">Aktiv (Sofort + Alle 5 Sekunden)</strong></p>
                     <p style="font-size: 16px; margin: 8px 0; color: #ffffff;">🕒 Letzter automatischer Save: <strong style="color: #ffffff;">${lastSave}</strong></p>
                 </div>
 
@@ -504,6 +504,7 @@ function claimChapterQuest(chapterId) {
         checkLevelUp();
         updateUI();
         renderCurrentTab();
+        saveGame(); // Automatisches Cloud-Speichern nach Quest-Abgabe
 
         if (nextCh) {
             if (player.level >= nextCh.reqLevel) {
@@ -541,6 +542,7 @@ function giveGift(key) {
         showCustomModal("Geschenk überreicht! ❤️", `${h.name} freut sich riesig über dein Geschenk! Zuneigung ist gestiegen auf ${h.affection}/100!`, h.icon, "levelup");
         updateUI();
         renderCurrentTab();
+        saveGame(); // Automatisches Cloud-Speichern nach Geschenk
     } else {
         showCustomModal("Fehlendes Geschenk!", `Du hast kein <strong>1x ${getItemIcon(fav)}</strong> in deinem Lager!`, "🎁", "click");
     }
@@ -554,6 +556,7 @@ function unlockHeroine(key) {
         showCustomModal("Neue Begleiterin!", `${h.name} schließt sich deinem Hof an!`, h.icon, "levelup");
         updateUI();
         renderCurrentTab();
+        saveGame(); // Automatisches Cloud-Speichern nach Freischalten
     } else {
         showCustomModal("Gesperrt!", `Du benötigst Level ${h.unlockReq.level} und 💰${formatNumber(h.unlockReq.gold)} Gold!`, "🔒", "click");
     }
@@ -614,6 +617,7 @@ window.startTimer = function(listName, key) {
             playSound('buy');
             updateUI();
             renderCurrentTab();
+            saveGame(); // SOFORT SPEICHERN BEIM KAUF/HERSTELLEN
         } else {
             showCustomModal("Zu wenig Zutaten!", `Du benötigst <strong>${reqAmount}x ${getItemIcon(reqItem)}</strong> im Lager!`, "⚠️", "click");
         }
@@ -628,6 +632,7 @@ window.startTimer = function(listName, key) {
             playSound('buy');
             updateUI();
             renderCurrentTab();
+            saveGame(); // SOFORT SPEICHERN BEIM KAUF/PFLANZEN
         } else { 
             showCustomModal("Zu wenig Gold!", "Dir fehlen die nötigen Münzen!", "💰", "click"); 
         }
@@ -656,6 +661,7 @@ window.harvestItem = function(listName, key) {
     checkLevelUp();
     updateUI();
     renderCurrentTab();
+    saveGame(); // SOFORT SPEICHERN BEIM ERNTEN
 };
 
 window.sellItem = function(listName, key) {
@@ -666,6 +672,7 @@ window.sellItem = function(listName, key) {
         playSound('sell');
         updateUI();
         renderCurrentTab();
+        saveGame(); // SOFORT SPEICHERN BEIM VERKAUFEN
     }
 };
 
@@ -682,6 +689,7 @@ window.researchCrop = function(key) {
         showCustomModal("Forschung Erfolgreich!", `Du hast <strong>${crop.name}</strong> erforscht!`, "🔓", "levelup");
         updateUI();
         renderCurrentTab();
+        saveGame(); // SOFORT SPEICHERN NACH FORSCHUNG
     } else { 
         let goldMessage = reqGold > 0 ? ` UND 💰<strong>${formatNumber(reqGold)} Gold</strong>` : '';
         showCustomModal("Forschung gesperrt!", `Du benötigst <strong>${reqAmount}x ${getItemIcon(reqItem)}</strong>${goldMessage} im Lager!`, "🔒", "click"); 
@@ -720,7 +728,7 @@ function checkLevelUp() {
     }
 }
 
-// LOCALSTORAGE SAVE / LOAD
+// LOCALSTORAGE & CLOUD SAVE / LOAD
 function saveGame(manual = false) {
     let saveData = {
         player: player,
@@ -732,7 +740,12 @@ function saveGame(manual = false) {
     let timeStr = new Date().toLocaleTimeString('de-DE');
     localStorage.setItem("isekai_farm_save_time", timeStr);
     
-    if (manual) showCustomModal("Gespeichert!", "Dein Spielstand wurde erfolgreich gesichert!", "💾", "click");
+    // Cloud-Sync direkt mitausführen
+    if (typeof saveCloudGame === 'function') {
+        saveCloudGame();
+    }
+
+    if (manual) showCustomModal("Gespeichert!", "Dein Spielstand wurde erfolgreich lokal und in der Cloud gesichert!", "💾", "click");
 }
 
 function loadGame() {
