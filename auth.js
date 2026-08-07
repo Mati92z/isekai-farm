@@ -1,4 +1,4 @@
-// auth.js - Synchronisiertes Cloud-Login mit Abmelde-Funktion
+// auth.js - Synchronisiertes Cloud-Login mit verlässlichem Abmelden
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
@@ -9,6 +9,9 @@ let currentUserEmail = null;
 window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
+
+    // Event Listener für den Abmelden-Button registrieren
+    document.getElementById('btn-logout')?.addEventListener('click', logoutUser);
 
     if (savedUser) {
         currentUserEmail = savedUser;
@@ -41,13 +44,14 @@ document.getElementById('auth-login-btn')?.addEventListener('click', async () =>
     setInterval(saveCloudGame, 10000);
 });
 
-// ABMELDEN-FUNKTION (Reset local storage)
-window.logoutUser = function() {
+// ABMELDEN-FUNKTION
+function logoutUser() {
     if (confirm("Möchtest du dich wirklich abmelden? Ungespeicherte Fortschritte gehen verloren.")) {
         localStorage.removeItem("isekai_user_email");
-        location.reload(); // Lädt die Seite neu und zeigt das Login-Fenster
+        location.reload();
     }
-};
+}
+window.logoutUser = logoutUser;
 
 // CLOUD SPEICHERN
 window.saveCloudGame = async function() {
