@@ -1,4 +1,4 @@
-// script.js - Gut lesbare System-Texte & Automatische Quest-Start-Engine (Inkl. Instant Cloud-Save)
+// script.js - Gut lesbare System-Texte & Automatische Quest-Start-Engine (Inkl. Vollständiger Forschungs-Sicherung)
 
 const storyDialogs = [
     "Hallo? Kannst du mich hören? Oh je... das ist jetzt echt peinlich.",
@@ -168,8 +168,11 @@ function initGameSession() {
     createFloatingQuestButton();
     renderCurrentTab();
     
-    setInterval(gameTick, 1000);
-    setInterval(saveGame, 5000);
+    if (!window.gameIntervalsStarted) {
+        setInterval(gameTick, 1000);
+        setInterval(saveGame, 5000);
+        window.gameIntervalsStarted = true;
+    }
 
     // AUTOMATISCHER QUEST-START BEI SPIELSTART
     setTimeout(() => {
@@ -504,7 +507,7 @@ function claimChapterQuest(chapterId) {
         checkLevelUp();
         updateUI();
         renderCurrentTab();
-        saveGame(); // Automatisches Cloud-Speichern nach Quest-Abgabe
+        saveGame();
 
         if (nextCh) {
             if (player.level >= nextCh.reqLevel) {
@@ -542,7 +545,7 @@ function giveGift(key) {
         showCustomModal("Geschenk überreicht! ❤️", `${h.name} freut sich riesig über dein Geschenk! Zuneigung ist gestiegen auf ${h.affection}/100!`, h.icon, "levelup");
         updateUI();
         renderCurrentTab();
-        saveGame(); // Automatisches Cloud-Speichern nach Geschenk
+        saveGame();
     } else {
         showCustomModal("Fehlendes Geschenk!", `Du hast kein <strong>1x ${getItemIcon(fav)}</strong> in deinem Lager!`, "🎁", "click");
     }
@@ -556,7 +559,7 @@ function unlockHeroine(key) {
         showCustomModal("Neue Begleiterin!", `${h.name} schließt sich deinem Hof an!`, h.icon, "levelup");
         updateUI();
         renderCurrentTab();
-        saveGame(); // Automatisches Cloud-Speichern nach Freischalten
+        saveGame();
     } else {
         showCustomModal("Gesperrt!", `Du benötigst Level ${h.unlockReq.level} und 💰${formatNumber(h.unlockReq.gold)} Gold!`, "🔒", "click");
     }
@@ -617,7 +620,7 @@ window.startTimer = function(listName, key) {
             playSound('buy');
             updateUI();
             renderCurrentTab();
-            saveGame(); // SOFORT SPEICHERN BEIM KAUF/HERSTELLEN
+            saveGame();
         } else {
             showCustomModal("Zu wenig Zutaten!", `Du benötigst <strong>${reqAmount}x ${getItemIcon(reqItem)}</strong> im Lager!`, "⚠️", "click");
         }
@@ -632,7 +635,7 @@ window.startTimer = function(listName, key) {
             playSound('buy');
             updateUI();
             renderCurrentTab();
-            saveGame(); // SOFORT SPEICHERN BEIM KAUF/PFLANZEN
+            saveGame();
         } else { 
             showCustomModal("Zu wenig Gold!", "Dir fehlen die nötigen Münzen!", "💰", "click"); 
         }
@@ -661,7 +664,7 @@ window.harvestItem = function(listName, key) {
     checkLevelUp();
     updateUI();
     renderCurrentTab();
-    saveGame(); // SOFORT SPEICHERN BEIM ERNTEN
+    saveGame();
 };
 
 window.sellItem = function(listName, key) {
@@ -672,7 +675,7 @@ window.sellItem = function(listName, key) {
         playSound('sell');
         updateUI();
         renderCurrentTab();
-        saveGame(); // SOFORT SPEICHERN BEIM VERKAUFEN
+        saveGame();
     }
 };
 
@@ -689,7 +692,7 @@ window.researchCrop = function(key) {
         showCustomModal("Forschung Erfolgreich!", `Du hast <strong>${crop.name}</strong> erforscht!`, "🔓", "levelup");
         updateUI();
         renderCurrentTab();
-        saveGame(); // SOFORT SPEICHERN NACH FORSCHUNG
+        saveGame();
     } else { 
         let goldMessage = reqGold > 0 ? ` UND 💰<strong>${formatNumber(reqGold)} Gold</strong>` : '';
         showCustomModal("Forschung gesperrt!", `Du benötigst <strong>${reqAmount}x ${getItemIcon(reqItem)}</strong>${goldMessage} im Lager!`, "🔒", "click"); 
@@ -728,51 +731,95 @@ function checkLevelUp() {
     }
 }
 
-// LOCALSTORAGE & CLOUD SAVE / LOAD
+// HELFER FÜR FORSCHUNG-SPEICHERUNG
+function exportCategoryState(catObj) {
+    if (!catObj) return {};
+    let state = {};
+    for (let k in catObj) {
+        state[k] = {
+            unlocked: catObj[k].unlocked,
+            cost: catObj[k].cost,
+            rewardGold: catObj[k].rewardGold
+        };
+    }
+    return state;
+}
+
+function importCategoryState(catObj, savedState) {
+    if (!catObj || !savedState) return;
+    for (let k in savedState) {
+        if (catObj[k]) {
+            if (savedState[k].unlocked !== undefined) catObj[k].unlocked = savedState[k].unlocked;
+            if (savedState[k].cost !== undefined) catObj[k].cost = savedState[k].cost;
+            if (savedState[k].rewardGold !== undefined) catObj[k].rewardGold = savedState[k].rewardGold;
+        }
+    }
+}
+
+// LOCALSTORAGE SAVE / LOAD
 function saveGame(manual = false) {
     let saveData = {
         player: player,
         inventory: inventory,
         heroines: heroines,
-        storyChapters: storyChapters
+        storyChapters: storyChapters,
+        crops: exportCategoryState(crops),
+        trees: exportCategoryState(trees),
+        animals: exportCategoryState(animals),
+        ores: exportCategoryState(ores),
+        kitchen: exportCategoryState(kitchen),
+        gilde: exportCategoryState(gilde),
+        alchemie: exportCategoryState(alchemie)
     };
     localStorage.setItem("isekai_farm_save", JSON.stringify(saveData));
     let timeStr = new Date().toLocaleTimeString('de-DE');
     localStorage.setItem("isekai_farm_save_time", timeStr);
     
-    // Cloud-Sync direkt mitausführen
     if (typeof saveCloudGame === 'function') {
         saveCloudGame();
     }
 
-    if (manual) showCustomModal("Gespeichert!", "Dein Spielstand wurde erfolgreich lokal und in der Cloud gesichert!", "💾", "click");
+    if (manual) showCustomModal("Gespeichert!", "Dein Spielstand wurde erfolgreich gesichert!", "💾", "click");
 }
 
 function loadGame() {
     let saved = localStorage.getItem("isekai_farm_save");
     if (saved) {
-        let parsed = JSON.parse(saved);
-        if (parsed.player) player = parsed.player;
-        if (parsed.inventory) inventory = parsed.inventory;
-        if (parsed.heroines) {
-            for (let k in parsed.heroines) {
-                if (heroines[k]) {
-                    heroines[k].affection = parsed.heroines[k].affection;
-                    heroines[k].unlocked = parsed.heroines[k].unlocked;
+        try {
+            let parsed = JSON.parse(saved);
+            if (parsed.player) player = parsed.player;
+            if (parsed.inventory) inventory = parsed.inventory;
+            
+            importCategoryState(crops, parsed.crops);
+            importCategoryState(trees, parsed.trees);
+            importCategoryState(animals, parsed.animals);
+            importCategoryState(ores, parsed.ores);
+            importCategoryState(kitchen, parsed.kitchen);
+            importCategoryState(gilde, parsed.gilde);
+            importCategoryState(alchemie, parsed.alchemie);
+
+            if (parsed.heroines) {
+                for (let k in parsed.heroines) {
+                    if (heroines[k]) {
+                        heroines[k].affection = parsed.heroines[k].affection;
+                        heroines[k].unlocked = parsed.heroines[k].unlocked;
+                    }
                 }
             }
+            if (parsed.storyChapters) {
+                parsed.storyChapters.forEach(sc => {
+                    let ch = storyChapters.find(c => c.id === sc.id);
+                    if (ch) {
+                        ch.unlocked = sc.unlocked;
+                        if (sc.quest) ch.quest.completed = sc.quest.completed;
+                    }
+                });
+            }
+            updateUI();
+            return true;
+        } catch(e) {
+            console.error("Fehler beim lokalen Laden:", e);
         }
-        if (parsed.storyChapters) {
-            parsed.storyChapters.forEach(sc => {
-                let ch = storyChapters.find(c => c.id === sc.id);
-                if (ch) {
-                    ch.unlocked = sc.unlocked;
-                    if (sc.quest) ch.quest.completed = sc.quest.completed;
-                }
-            });
-        }
-        updateUI();
-        return true;
     }
     return false;
 }

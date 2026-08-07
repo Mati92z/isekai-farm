@@ -1,4 +1,4 @@
-// auth.js - Synchronisiertes Cloud-Login & Vollständige Spielstands-Sicherung
+// auth.js - Synchronisiertes Cloud-Login & Geräteübergreifende Spielstands-Sicherung
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
@@ -63,16 +63,13 @@ window.saveCloudGame = async function() {
         inventory: (typeof inventory !== 'undefined') ? inventory : {},
         heroines: (typeof heroines !== 'undefined') ? heroines : {},
         storyChapters: (typeof storyChapters !== 'undefined') ? storyChapters : [],
-        
-        // Jetzt werden auch alle Forschungs- und Freischaltungs-Zustände gesichert:
-        crops: (typeof crops !== 'undefined') ? crops : {},
-        trees: (typeof trees !== 'undefined') ? trees : {},
-        animals: (typeof animals !== 'undefined') ? animals : {},
-        ores: (typeof ores !== 'undefined') ? ores : {},
-        kitchen: (typeof kitchen !== 'undefined') ? kitchen : {},
-        gilde: (typeof gilde !== 'undefined') ? gilde : {},
-        alchemie: (typeof alchemie !== 'undefined') ? alchemie : {},
-        
+        crops: (typeof exportCategoryState === 'function') ? exportCategoryState(crops) : {},
+        trees: (typeof exportCategoryState === 'function') ? exportCategoryState(trees) : {},
+        animals: (typeof exportCategoryState === 'function') ? exportCategoryState(animals) : {},
+        ores: (typeof exportCategoryState === 'function') ? exportCategoryState(ores) : {},
+        kitchen: (typeof exportCategoryState === 'function') ? exportCategoryState(kitchen) : {},
+        gilde: (typeof exportCategoryState === 'function') ? exportCategoryState(gilde) : {},
+        alchemie: (typeof exportCategoryState === 'function') ? exportCategoryState(alchemie) : {},
         lastSave: new Date().toLocaleString('de-DE')
     };
 
@@ -94,6 +91,7 @@ window.saveCloudGame = async function() {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': DB_API_KEY,
+                    'X-Bin-Name': currentUserEmail,
                     'X-Bin-Private': 'true'
                 },
                 body: JSON.stringify(saveData)
@@ -108,23 +106,32 @@ window.saveCloudGame = async function() {
     }
 };
 
-// HELFER UND SYSTEM-LADEN
-function applyCategorySave(targetObj, savedObj) {
-    if (!targetObj || !savedObj) return;
-    for (let k in savedObj) {
-        if (targetObj[k]) {
-            if (savedObj[k].unlocked !== undefined) targetObj[k].unlocked = savedObj[k].unlocked;
-            if (savedObj[k].cost !== undefined) targetObj[k].cost = savedObj[k].cost;
-            if (savedObj[k].rewardGold !== undefined) targetObj[k].rewardGold = savedObj[k].rewardGold;
-        }
-    }
-}
-
-// CLOUD LADEN
+// CLOUD LADEN (GERÄTEÜBERGREIFENDE SUCHE)
 window.loadCloudGame = async function() {
     if (!currentUserEmail) return;
 
     let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
+
+    // Falls keine binId lokal existiert (z.B. neues Gerät / nach Abmeldung),
+    // suchen wir in JSONbin nach einer Bin mit dem Namen currentUserEmail
+    if (!binId) {
+        try {
+            const searchRes = await fetch(`${DB_COLLECTION_URL}`, {
+                headers: { 'X-Master-Key': DB_API_KEY }
+            });
+            const searchData = await searchRes.json();
+            if (Array.isArray(searchData)) {
+                const match = searchData.find(b => b.snippetMeta && b.snippetMeta.name === currentUserEmail);
+                if (match) {
+                    binId = match.record;
+                    localStorage.setItem("isekai_bin_id_" + currentUserEmail, binId);
+                }
+            }
+        } catch (e) {
+            console.error("Fehler bei der Cloud-Suche:", e);
+        }
+    }
+
     if (!binId) return;
 
     try {
@@ -138,14 +145,15 @@ window.loadCloudGame = async function() {
             if (parsed.player) player = parsed.player;
             if (parsed.inventory) inventory = parsed.inventory;
 
-            // Forschungen & Freischaltungen aus Cloud übertragen:
-            if (parsed.crops && typeof crops !== 'undefined') applyCategorySave(crops, parsed.crops);
-            if (parsed.trees && typeof trees !== 'undefined') applyCategorySave(trees, parsed.trees);
-            if (parsed.animals && typeof animals !== 'undefined') applyCategorySave(animals, parsed.animals);
-            if (parsed.ores && typeof ores !== 'undefined') applyCategorySave(ores, parsed.ores);
-            if (parsed.kitchen && typeof kitchen !== 'undefined') applyCategorySave(kitchen, parsed.kitchen);
-            if (parsed.gilde && typeof gilde !== 'undefined') applyCategorySave(gilde, parsed.gilde);
-            if (parsed.alchemie && typeof alchemie !== 'undefined') applyCategorySave(alchemie, parsed.alchemie);
+            if (typeof importCategoryState === 'function') {
+                if (parsed.crops) importCategoryState(crops, parsed.crops);
+                if (parsed.trees) importCategoryState(trees, parsed.trees);
+                if (parsed.animals) importCategoryState(animals, parsed.animals);
+                if (parsed.ores) importCategoryState(ores, parsed.ores);
+                if (parsed.kitchen) importCategoryState(kitchen, parsed.kitchen);
+                if (parsed.gilde) importCategoryState(gilde, parsed.gilde);
+                if (parsed.alchemie) importCategoryState(alchemie, parsed.alchemie);
+            }
 
             if (parsed.heroines && typeof heroines !== 'undefined') {
                 for (let k in parsed.heroines) {
@@ -166,8 +174,30 @@ window.loadCloudGame = async function() {
                 });
             }
 
-            if (typeof updateUI === 'function') updateUI();
-            if (typeof renderCurrentTab === 'function') renderCurrentTab();
+            // Lokalen Speicher aktualisieren
+            if (typeof saveGame === 'function') {
+                let saveData = {
+                    player: player,
+                    inventory: inventory,
+                    heroines: heroines,
+                    storyChapters: storyChapters,
+                    crops: (typeof exportCategoryState === 'function') ? exportCategoryState(crops) : {},
+                    trees: (typeof exportCategoryState === 'function') ? exportCategoryState(trees) : {},
+                    animals: (typeof exportCategoryState === 'function') ? exportCategoryState(animals) : {},
+                    ores: (typeof exportCategoryState === 'function') ? exportCategoryState(ores) : {},
+                    kitchen: (typeof exportCategoryState === 'function') ? exportCategoryState(kitchen) : {},
+                    gilde: (typeof exportCategoryState === 'function') ? exportCategoryState(gilde) : {},
+                    alchemie: (typeof exportCategoryState === 'function') ? exportCategoryState(alchemie) : {}
+                };
+                localStorage.setItem("isekai_farm_save", JSON.stringify(saveData));
+            }
+
+            if (typeof initGameSession === 'function') {
+                initGameSession();
+            } else {
+                if (typeof updateUI === 'function') updateUI();
+                if (typeof renderCurrentTab === 'function') renderCurrentTab();
+            }
         }
     } catch (err) {
         console.error("Fehler beim Laden des Cloud-Spielstands:", err);
