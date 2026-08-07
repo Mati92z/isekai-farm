@@ -1,11 +1,12 @@
-// auth.js - Synchronisiertes Cloud-Login & Geräteübergreifende Spielstands-Sicherung
+// auth.js - Globale Multi-User Cloud-Datenbank
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
-const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
+const GLOBAL_BIN_ID = "65d8a8b1dc74654018aa3e9a"; // Fest definierter globaler Speicher-Vault
+const DB_URL = `https://api.jsonbin.io/v3/b/${GLOBAL_BIN_ID}`;
 
 let currentUserEmail = null;
 
-// ERZWINGT ANMELDUNG ODER AUTO-LOGIN
+// ERZWINGT ANMELDUNG ODER AUTO-LOGIN BEIM LADEN
 window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
@@ -22,7 +23,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// LOGIN-BUTTON
+// LOGIN & REGISTRIERUNG
 document.getElementById('auth-login-btn')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('auth-email').value.trim().toLowerCase();
     const passwordInput = document.getElementById('auth-password').value.trim();
@@ -53,12 +54,11 @@ async function logoutUser() {
 }
 window.logoutUser = logoutUser;
 
-// CLOUD SPEICHERN (VOLLSTÄNDIGER DATENSATZ)
+// CLOUD SPEICHERN (In den zentralen Speicher-Vault)
 window.saveCloudGame = async function() {
     if (!currentUserEmail) return;
 
-    const saveData = {
-        user: currentUserEmail,
+    const currentSave = {
         player: (typeof player !== 'undefined') ? player : {},
         inventory: (typeof inventory !== 'undefined') ? inventory : {},
         heroines: (typeof heroines !== 'undefined') ? heroines : {},
@@ -74,74 +74,45 @@ window.saveCloudGame = async function() {
     };
 
     try {
-        let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
-        
-        if (binId) {
-            await fetch(`${DB_COLLECTION_URL}/${binId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': DB_API_KEY
-                },
-                body: JSON.stringify(saveData)
-            });
-        } else {
-            const res = await fetch(DB_COLLECTION_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': DB_API_KEY,
-                    'X-Bin-Name': currentUserEmail,
-                    'X-Bin-Private': 'true'
-                },
-                body: JSON.stringify(saveData)
-            });
-            const data = await res.json();
-            if (data.metadata && data.metadata.id) {
-                localStorage.setItem("isekai_bin_id_" + currentUserEmail, data.metadata.id);
-            }
-        }
+        // 1. Gesamte Datenbank abrufen
+        const res = await fetch(`${DB_URL}/latest`, {
+            headers: { 'X-Master-Key': DB_API_KEY }
+        });
+        const data = await res.json();
+        let db = data.record || {};
+
+        // 2. Den eigenen Spielstand in der Datenbank aktualisieren
+        db[currentUserEmail] = currentSave;
+
+        // 3. Datenbank zurückschreiben
+        await fetch(DB_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': DB_API_KEY
+            },
+            body: JSON.stringify(db)
+        });
+        console.log("Cloud-Sync erfolgreich!");
     } catch (err) {
         console.error("Fehler beim Cloud-Speichern:", err);
     }
 };
 
-// CLOUD LADEN (GERÄTEÜBERGREIFENDE SUCHE)
+// CLOUD LADEN (Lädt deinen Account aus dem zentralen Vault)
 window.loadCloudGame = async function() {
     if (!currentUserEmail) return;
 
-    let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
-
-    // Falls keine binId lokal existiert (z.B. neues Gerät / nach Abmeldung),
-    // suchen wir in JSONbin nach einer Bin mit dem Namen currentUserEmail
-    if (!binId) {
-        try {
-            const searchRes = await fetch(`${DB_COLLECTION_URL}`, {
-                headers: { 'X-Master-Key': DB_API_KEY }
-            });
-            const searchData = await searchRes.json();
-            if (Array.isArray(searchData)) {
-                const match = searchData.find(b => b.snippetMeta && b.snippetMeta.name === currentUserEmail);
-                if (match) {
-                    binId = match.record;
-                    localStorage.setItem("isekai_bin_id_" + currentUserEmail, binId);
-                }
-            }
-        } catch (e) {
-            console.error("Fehler bei der Cloud-Suche:", e);
-        }
-    }
-
-    if (!binId) return;
-
     try {
-        const res = await fetch(`${DB_COLLECTION_URL}/${binId}/latest`, {
+        const res = await fetch(`${DB_URL}/latest`, {
             headers: { 'X-Master-Key': DB_API_KEY }
         });
         const data = await res.json();
-        
-        if (data.record) {
-            const parsed = data.record;
+        const db = data.record || {};
+
+        // Prüfen, ob für diese E-Mail bereits ein Spielstand existiert
+        if (db[currentUserEmail]) {
+            const parsed = db[currentUserEmail];
             if (parsed.player) player = parsed.player;
             if (parsed.inventory) inventory = parsed.inventory;
 
@@ -174,7 +145,7 @@ window.loadCloudGame = async function() {
                 });
             }
 
-            // Lokalen Speicher aktualisieren
+            // Lokalen Speicher mit Cloud-Daten überschreiben
             if (typeof saveGame === 'function') {
                 let saveData = {
                     player: player,
@@ -200,6 +171,6 @@ window.loadCloudGame = async function() {
             }
         }
     } catch (err) {
-        console.error("Fehler beim Laden des Cloud-Spielstands:", err);
+        console.error("Fehler beim Laden aus der Cloud:", err);
     }
 };
