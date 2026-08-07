@@ -1,0 +1,442 @@
+/* Grunddesign für das ganze Spiel - Vollbild-Modus */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none; 
+}
+
+body {
+    background-color: #eef5db; 
+    color: #333;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden; 
+}
+
+.screen {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 1. STORY-BILDSCHIRM DESIGN */
+#intro-screen {
+    background-color: #1a1512; 
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.story-box {
+    background-color: #4a3b32; 
+    color: #f7f5f0;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.5);
+    max-width: 600px;
+    width: 100%;
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.story-box h2 {
+    color: #ffd700; 
+    margin-bottom: 20px;
+    text-align: center;
+    border-bottom: 2px solid #ffd700;
+    padding-bottom: 10px;
+}
+
+.dialog-container {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px;
+}
+
+.dialog {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    line-height: 1.6;
+    font-style: italic;
+    font-size: 18px;
+    width: 100%;
+    min-height: 100px;
+}
+
+.next-arrow-btn {
+    background: none;
+    border: none;
+    color: #ffd700;
+    font-size: 28px;
+    cursor: pointer;
+    align-self: flex-end;
+    animation: bounce 1s infinite alternate;
+}
+
+@keyframes bounce {
+    from { transform: translateX(0); }
+    to { transform: translateX(5px); }
+}
+
+.form-group {
+    margin: 25px 0;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    background-color: #fff;
+    color: #333;
+}
+
+.btn {
+    display: block;
+    width: 100%;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    padding: 14px;
+    font-size: 18px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn:hover {
+    background-color: #45a049;
+}
+
+/* 2. SPIEL-BILDSCHIRM DESIGN */
+#game-screen {
+    background-color: #fff;
+}
+
+.status-bar {
+    background-color: #2e7d32; 
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+}
+
+.badge {
+    background-color: #ffd700;
+    color: #333;
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-left: 10px;
+}
+
+.game-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; /* Zwingt Flexbox zur Einhaltung der Höhe */
+}
+
+.game-tabs {
+    display: flex;
+    background-color: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+    flex-shrink: 0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 15px;
+    border: none;
+    background: none;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    color: #666;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab-btn.active {
+    color: #2e7d32;
+    border-bottom: 3px solid #2e7d32;
+    background-color: #fff;
+}
+
+/* KORRIGIERT: Begrenzt das Fenster exakt auf den verbleibenden Bildschirm */
+.tab-content {
+    padding: 20px 30px;
+    flex-grow: 1;
+    background-color: #fcfdf9;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; 
+    height: calc(100vh - 120px); 
+}
+
+.content-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    flex-shrink: 0;
+}
+
+.scroll-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-scroll-nav {
+    background-color: #4a3b32;
+    color: #ffd700;
+    border: 2px solid #ffd700;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 14px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.btn-scroll-nav:hover {
+    background-color: #5c4a3e;
+}
+
+.scroll-box-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; 
+}
+
+/* KORRIGIERT: Dieses Gitter fängt das Scrollen jetzt physisch ein! */
+.crop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); 
+    gap: 25px;
+    padding: 10px 5px 30px 5px;
+    overflow-y: scroll; /* Scrollbar wird physisch erzwungen */
+    flex-grow: 1;
+    min-height: 0; 
+}
+
+/* Pflanzen-Karten */
+.crop-card {
+    background-color: #fff;
+    border: 2px solid #a4c2a0;
+    border-radius: 12px;
+    padding: 25px;
+    text-align: center;
+    box-shadow: 0 6px 12px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 320px; 
+}
+
+.crop-card:hover:not(.locked) {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+}
+
+.crop-card.locked {
+    background-color: #f2f2f2;
+    border-color: #d0d8d0;
+    color: #888;
+}
+
+.crop-icon {
+    font-size: 55px;
+    display: block;
+    margin-bottom: 15px;
+}
+
+.crop-card h4 {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.crop-card p {
+    font-size: 15px;
+    margin-bottom: 10px;
+}
+
+.btn-action, .btn-research, .btn-sell {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.btn-action {
+    background-color: #2e7d32;
+    color: white;
+}
+
+.btn-research {
+    background-color: #f57c00;
+    color: white;
+}
+
+.btn-sell {
+    background-color: #e6c200; 
+    color: #333;
+}
+
+.btn-sell:disabled {
+    background-color: #e0e0e0;
+    color: #a0a0a0;
+    cursor: not-allowed;
+}
+
+.crop-desc {
+    font-size: 13px;
+    color: #666;
+    font-style: italic;
+    margin-bottom: 15px;
+    line-height: 1.4;
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mobil-Anpassung für Smartphones & Tablets */
+@media (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
+
+    #game-screen {
+        width: 100% !important;
+        padding: 10px !important;
+    }
+
+    .crop-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        max-height: 65vh !important;
+    }
+
+    .btn-action, .btn-sell, .btn-research {
+        width: 100% !important;
+        padding: 12px 10px !important;
+        font-size: 14px !important;
+    }
+
+    .tab-navigation {
+        display: flex !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        padding-bottom: 8px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+        flex: 0 0 auto !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+}
+
+/* Transparenter Q-Button unten rechts auf dem Bildschirm */
+#floating-quest-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(30, 30, 47, 0.65);
+    color: #ffd700;
+    border: 2px solid rgba(255, 215, 0, 0.8);
+    border-radius: 50px;
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    z-index: 9999;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    transition: all 0.2s ease-in-out;
+}
+
+#floating-quest-btn:hover {
+    background: rgba(255, 215, 0, 0.85);
+    color: #1e1e2f;
+    transform: scale(1.05);
+}
+
+/* Mobil-Anpassung für Smartphones & Tablets */
+@media (max-width: 768px) {
+    body {
+        padding: 5px;
+    }
+
+    #game-screen {
+        width: 100% !important;
+        padding: 10px !important;
+    }
+
+    .crop-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+        max-height: 65vh !important;
+    }
+
+    .btn-action, .btn-sell, .btn-research {
+        width: 100% !important;
+        padding: 12px 10px !important;
+        font-size: 14px !important;
+    }
+
+    .tab-navigation {
+        display: flex !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+        padding-bottom: 8px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-btn {
+        flex: 0 0 auto !important;
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+    }
+
+    #floating-quest-btn {
+        bottom: 15px;
+        right: 15px;
+        padding: 8px 15px;
+        font-size: 14px;
+    }
+}
