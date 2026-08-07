@@ -1,10 +1,11 @@
-// auth.js - Echtes geräteübergreifendes Cloud-Login System
+// auth.js - Synchronisiertes Cloud-Login mit Abmelde-Funktion
 
 const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
 
 let currentUserEmail = null;
 
+// ERZWINGT ANMELDUNG ODER AUTO-LOGIN
 window.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
@@ -19,6 +20,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// LOGIN-BUTTON
 document.getElementById('auth-login-btn')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('auth-email').value.trim().toLowerCase();
     const passwordInput = document.getElementById('auth-password').value.trim();
@@ -38,6 +40,14 @@ document.getElementById('auth-login-btn')?.addEventListener('click', async () =>
     await loadCloudGame();
     setInterval(saveCloudGame, 10000);
 });
+
+// ABMELDEN-FUNKTION (Reset local storage)
+window.logoutUser = function() {
+    if (confirm("Möchtest du dich wirklich abmelden? Ungespeicherte Fortschritte gehen verloren.")) {
+        localStorage.removeItem("isekai_user_email");
+        location.reload(); // Lädt die Seite neu und zeigt das Login-Fenster
+    }
+};
 
 // CLOUD SPEICHERN
 window.saveCloudGame = async function() {
@@ -70,7 +80,6 @@ window.saveCloudGame = async function() {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': DB_API_KEY,
-                    'X-Bin-Name': currentUserEmail,
                     'X-Bin-Private': 'true'
                 },
                 body: JSON.stringify(saveData)
@@ -85,32 +94,30 @@ window.saveCloudGame = async function() {
     }
 };
 
-// CLOUD LADEN (Geraeteübergreifend)
+// CLOUD LADEN
 window.loadCloudGame = async function() {
     if (!currentUserEmail) return;
 
     let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
+    if (!binId) return;
 
     try {
-        if (binId) {
-            const res = await fetch(`${DB_COLLECTION_URL}/${binId}/latest`, {
-                headers: { 'X-Master-Key': DB_API_KEY }
-            });
-            const data = await res.json();
-            applySaveData(data.record);
+        const res = await fetch(`${DB_COLLECTION_URL}/${binId}/latest`, {
+            headers: { 'X-Master-Key': DB_API_KEY }
+        });
+        const data = await res.json();
+        
+        if (data.record) {
+            const parsed = data.record;
+            if (parsed.player) player = parsed.player;
+            if (parsed.inventory) inventory = parsed.inventory;
+            if (parsed.heroines) heroines = parsed.heroines;
+            if (parsed.storyChapters) storyChapters = parsed.storyChapters;
+
+            if (typeof updateUI === 'function') updateUI();
+            if (typeof renderCurrentTab === 'function') renderCurrentTab();
         }
     } catch (err) {
         console.error("Fehler beim Laden:", err);
     }
 };
-
-function applySaveData(parsed) {
-    if (!parsed) return;
-    if (parsed.player) player = parsed.player;
-    if (parsed.inventory) inventory = parsed.inventory;
-    if (parsed.heroines) heroines = parsed.heroines;
-    if (parsed.storyChapters) storyChapters = parsed.storyChapters;
-
-    if (typeof updateUI === 'function') updateUI();
-    if (typeof renderCurrentTab === 'function') renderCurrentTab();
-}
