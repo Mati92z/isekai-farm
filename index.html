@@ -7,6 +7,18 @@
     <link href="style.css" rel="stylesheet">
 </head>
 <body>
+    <!-- LOGIN OVERLAY -->
+    <div id="auth-overlay" style="position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10,10,20,0.95); z-index:999999; display:flex; justify-content:center; align-items:center;">
+        <div style="background: linear-gradient(145deg, #1e1e2f, #2a2a40); border: 2px solid #ffd700; border-radius: 16px; padding: 30px; width: 90%; max-width: 380px; text-align: center; color: white;">
+            <h2 style="color:#ffd700; margin-bottom:15px; font-family: sans-serif;">👑 Isekai Cloud Login</h2>
+            <p style="font-size:13px; color:#aaa; margin-bottom:20px; font-family: sans-serif;">Melde dich an, um deinen persönlichen Spielstand zu synchronisieren!</p>
+            
+            <input type="email" id="auth-email" placeholder="E-Mail Adresse" style="width:100%; padding:12px; margin-bottom:10px; border-radius:8px; border:1px solid #444; background:#111; color:white; box-sizing: border-box;">
+            <input type="password" id="auth-password" placeholder="Passwort" style="width:100%; padding:12px; margin-bottom:20px; border-radius:8px; border:1px solid #444; background:#111; color:white; box-sizing: border-box;">
+            
+            <button id="auth-login-btn" style="width:100%; padding:12px; background:#4CAF50; color:white; font-weight:bold; border:none; border-radius:8px; cursor:pointer; margin-bottom:10px;">Einloggen / Registrieren 🚀</button>
+        </div>
+    </div>
 
     <!-- 1. INTRO / STORY-BILDSCHIRM -->
     <div id="intro-screen" class="screen">
@@ -43,19 +55,20 @@
             </div>
         </header>
 
-<div class="tab-navigation">
-    <button class="tab-btn active">🌱 Beet</button>
-    <button class="tab-btn">🍎 Obst</button>
-    <button class="tab-btn">🐔 Tiere</button>
-    <button class="tab-btn">⛏️ Mine</button>
-    <button class="tab-btn">🍳 Küche</button>
-    <button class="tab-btn">⚔️ Gilde</button>
-    <button class="tab-btn">🔮 Alchemie</button>
-    <button class="tab-btn">👑 Heldinnen</button>
-    <button class="tab-btn">📜 Story & Quests</button>
-    <button class="tab-btn">⚙️ System</button>
-</div>
+        <div class="tab-navigation">
+            <button class="tab-btn active">🌱 Beet</button>
+            <button class="tab-btn">🍎 Obst</button>
+            <button class="tab-btn">🐔 Tiere</button>
+            <button class="tab-btn">⛏️ Mine</button>
+            <button class="tab-btn">🍳 Küche</button>
+            <button class="tab-btn">⚔️ Gilde</button>
+            <button class="tab-btn">🔮 Alchemie</button>
+            <button class="tab-btn">👑 Heldinnen</button>
+            <button class="tab-btn">📜 Story & Quests</button>
+            <button class="tab-btn">⚙️ System</button>
+        </div>
 
+        <main>
             <section class="tab-content">
                 <div class="content-header">
                     <h3 id="tab-title">Dein Gemüsebeet</h3>
@@ -71,10 +84,11 @@
         </main>
     </div>
 
-    <!-- WICHTIG: Erst die Daten, dann die Logik! -->
-   <script src="data.js"></script>
-   <script src="heroines.js"></script>
-   <script src="story.js"></script>
-   <script src="script.js"></script>
+    <!-- SKRIPTE IN RICHTIGER REIHENFOLGE LADEN -->
+    <script src="data.js"></script>
+    <script src="heroines.js"></script>
+    <script src="story.js"></script>
+    <script src="script.js"></script>
+    <script src="auth.js"></script>
 </body>
 </html>

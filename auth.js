@@ -1,24 +1,26 @@
-// auth.js - Schlüsselfertiges Cloud-Login & Speicher-System (Ohne Firebase-Hassle)
+// auth.js - Schlüsselfertiges Cloud-Login & Speicher-System
 
-const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO"; // Interner System-Key
+const DB_API_KEY = "$2a$10$vI0Hq0E43UqOaN6v5M8O4.4W8.O8cO.MvQ8z6vM5M8O4.4W8.O8cO";
 const DB_COLLECTION_URL = "https://api.jsonbin.io/v3/b";
 
 let currentUserEmail = null;
 
-// AUTOMATISCHER PROLOG / LOGIN CHECK BEIM LADEN
+// ERZWINGT DAS LOGIN-WINDOW BEIM LADEN
 window.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('auth-overlay');
     const savedUser = localStorage.getItem("isekai_user_email");
+
     if (savedUser) {
         currentUserEmail = savedUser;
-        document.getElementById('auth-overlay').style.display = 'none';
+        if (overlay) overlay.style.display = 'none';
         loadCloudGame();
-        
-        // Auto-Save alle 10 Sekunden in die Cloud
         setInterval(saveCloudGame, 10000);
+    } else {
+        if (overlay) overlay.style.display = 'flex';
     }
 });
 
-// LOGIN & REGISTRIERUNG
+// LOGIN & REGISTRIERUNGS-BUTTON
 document.getElementById('auth-login-btn')?.addEventListener('click', async () => {
     const emailInput = document.getElementById('auth-email').value.trim().toLowerCase();
     const passwordInput = document.getElementById('auth-password').value.trim();
@@ -28,24 +30,19 @@ document.getElementById('auth-login-btn')?.addEventListener('click', async () =>
         return;
     }
 
-    // Passwort hashed / verschlüsselt speichern
     const userKey = btoa(emailInput + ":" + passwordInput);
-    
-    // Anmelde-Overlay schließen und Benutzer merken
     currentUserEmail = userKey;
     localStorage.setItem("isekai_user_email", userKey);
     localStorage.setItem("isekai_user_display_name", emailInput);
     
-    document.getElementById('auth-overlay').style.display = 'none';
+    const overlay = document.getElementById('auth-overlay');
+    if (overlay) overlay.style.display = 'none';
     
-    // Versuchen Spielstand aus der Cloud zu laden
     await loadCloudGame();
-    
-    // Auto-Save starten
     setInterval(saveCloudGame, 10000);
 });
 
-// CLOUD SPEICHER-FUNKTION
+// CLOUD SPEICHERN
 window.saveCloudGame = async function() {
     if (!currentUserEmail) return;
 
@@ -62,7 +59,6 @@ window.saveCloudGame = async function() {
         let binId = localStorage.getItem("isekai_bin_id_" + currentUserEmail);
         
         if (binId) {
-            // Spielstand aktualisieren
             await fetch(`${DB_COLLECTION_URL}/${binId}`, {
                 method: 'PUT',
                 headers: {
@@ -72,7 +68,6 @@ window.saveCloudGame = async function() {
                 body: JSON.stringify(saveData)
             });
         } else {
-            // Erster Spielstand für diesen User anlegen
             const res = await fetch(DB_COLLECTION_URL, {
                 method: 'POST',
                 headers: {
@@ -87,13 +82,12 @@ window.saveCloudGame = async function() {
                 localStorage.setItem("isekai_bin_id_" + currentUserEmail, data.metadata.id);
             }
         }
-        console.log("Cloud-Sync erfolgreich!");
     } catch (err) {
         console.error("Fehler beim Cloud-Speichern:", err);
     }
 };
 
-// CLOUD LADE-FUNKTION
+// CLOUD LADEN
 window.loadCloudGame = async function() {
     if (!currentUserEmail) return;
 
